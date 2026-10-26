@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bryson's Pixelmon Server - Player Progress & SQL</title>
+    <title>Bryson's Pixelmon Server - Real-time Multi-User Gym & E4 Tracker</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -29,7 +29,7 @@
             }
         }
     </script>
-    <!-- FontAwesome for Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         ::-webkit-scrollbar {
@@ -64,51 +64,56 @@
                     <h1 class="text-2xl font-black tracking-wide text-emerald-400 flex items-center gap-2">
                         Bryson's Pixelmon Server
                     </h1>
-                    <p class="text-xs text-gray-400">Gym & Elite Four Progress Tracker • SQL Integration</p>
+                    <p class="text-xs text-gray-400">Live Gym & Elite Four Progress Sync • Real-Time Database</p>
                 </div>
             </div>
 
+            <!-- Sync Indicator & Reset Button -->
             <div class="flex items-center gap-3">
-                <button onclick="resetToDefaults()" class="bg-red-900/40 hover:bg-red-800/60 text-red-300 border border-red-700/50 text-xs px-3 py-1.5 rounded transition flex items-center gap-1">
-                    <i class="fa-solid fa-rotate-left"></i> Reset Database
+                <div id="syncStatus" class="bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 text-xs px-3 py-1.5 rounded-full flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="syncStatusText">Connecting to Live DB...</span>
+                </div>
+                <button onclick="resetDefaultPlayers()" class="bg-red-900/40 hover:bg-red-800/60 text-red-300 border border-red-700/50 text-xs px-3 py-1.5 rounded transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-left"></i> Seed Defaults
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Container -->
+    <!-- Main Content Grid -->
     <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <!-- BOX 1: Register New Player -->
         <section class="bg-mc-card border border-mc-border rounded-xl p-5 shadow-lg flex flex-col">
             <h2 class="text-lg font-bold text-white mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-user-plus text-emerald-400"></i> Add New Player
+                <i class="fa-solid fa-user-plus text-emerald-400"></i> Box 1: Add New Player
             </h2>
-            <p class="text-xs text-gray-400 mb-4">Register a unique Minecraft username to start tracking badges.</p>
+            <p class="text-xs text-gray-400 mb-4">Register a unique Minecraft username. Checks live database for duplicates.</p>
 
-            <form onsubmit="handleAddUser(event)" class="space-y-4">
+            <form id="addUserForm" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
                     <input type="text" id="newUsername" required placeholder="e.g. Bryson_Master" 
                            class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition font-mono">
-                    <p id="usernameError" class="text-xs text-red-400 mt-1 hidden flex items-center gap-1 font-semibold">
+                    <p id="usernameError" class="text-xs text-red-400 mt-1.5 hidden flex items-center gap-1 font-semibold">
                         <i class="fa-solid fa-circle-exclamation"></i> <span id="usernameErrorText">Username is already taken!</span>
                     </p>
                 </div>
 
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg transition shadow-md flex items-center justify-center gap-2 text-sm">
+                <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg transition shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50">
                     <i class="fa-solid fa-plus"></i> Register Player SQL Record
                 </button>
             </form>
 
-            <!-- Registered Players Count / Preview list -->
+            <!-- Live Synchronized Players List -->
             <div class="mt-6 pt-4 border-t border-neutral-800 flex-1">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span>Registered Players</span>
+                    <span>Live Database Players</span>
                     <span id="playerCountBadge" class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-mono">0 Players</span>
                 </h3>
                 <div id="registeredPlayersList" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                    <!-- Populated dynamically -->
+                    <span class="text-xs text-gray-500 italic">Loading players...</span>
                 </div>
             </div>
         </section>
@@ -116,19 +121,19 @@
         <!-- BOX 2: Player Gym & Elite Four Tracker -->
         <section class="bg-mc-card border border-mc-border rounded-xl p-5 shadow-lg flex flex-col">
             <h2 class="text-lg font-bold text-white mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-trophy text-yellow-400"></i> Gym & Elite Four Tracker
+                <i class="fa-solid fa-trophy text-yellow-400"></i> Box 2: Gym & Elite Four Progress
             </h2>
-            <p class="text-xs text-gray-400 mb-4">Select a registered player to view and update their defeated gyms and Elite 4.</p>
+            <p class="text-xs text-gray-400 mb-4">Select a player to modify. Updates live across all users in real-time!</p>
 
             <!-- Player Select Dropdown -->
             <div class="mb-5">
                 <label class="block text-xs font-semibold text-gray-300 mb-1">Select Active Player</label>
-                <select id="activePlayerSelect" onchange="loadActivePlayerBadges()" class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition font-mono">
-                    <!-- Populated dynamically -->
+                <select id="activePlayerSelect" class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition font-mono">
+                    <option value="">-- No Players Found --</option>
                 </select>
             </div>
 
-            <!-- Active Player Tracker Display -->
+            <!-- Active Player Badges Panel -->
             <div id="trackerDisplay" class="space-y-5">
                 
                 <!-- 8 Pokemon Gym Checkboxes -->
@@ -139,35 +144,35 @@
                     </h3>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-neutral-950 p-3 rounded-lg border border-neutral-800">
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_1" onchange="updateBadgeState('gym', 1)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_1" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>1. Boulder</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_2" onchange="updateBadgeState('gym', 2)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_2" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>2. Cascade</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_3" onchange="updateBadgeState('gym', 3)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_3" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>3. Thunder</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_4" onchange="updateBadgeState('gym', 4)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_4" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>4. Rainbow</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_5" onchange="updateBadgeState('gym', 5)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_5" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>5. Soul</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_6" onchange="updateBadgeState('gym', 6)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_6" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>6. Marsh</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_7" onchange="updateBadgeState('gym', 7)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_7" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>7. Volcano</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="gym_8" onchange="updateBadgeState('gym', 8)" class="rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="gym_8" class="badge-check rounded bg-neutral-900 border-neutral-700 text-emerald-500 focus:ring-0 w-4 h-4">
                             <span>8. Earth</span>
                         </label>
                     </div>
@@ -176,24 +181,24 @@
                 <!-- 4 Elite Four Checkboxes -->
                 <div>
                     <h3 class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-crown"></i> 4 Elite Four Defeated</span>
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-crown"></i> 4 Elite Four Members Defeated</span>
                         <span id="e4CountLabel" class="text-[11px] font-mono text-gray-400">(0/4)</span>
                     </h3>
                     <div class="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-lg border border-neutral-800">
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="e4_1" onchange="updateBadgeState('e4', 1)" class="rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="e4_1" class="badge-check rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
                             <span>Elite 1 (Lorelei)</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="e4_2" onchange="updateBadgeState('e4', 2)" class="rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="e4_2" class="badge-check rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
                             <span>Elite 2 (Bruno)</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="e4_3" onchange="updateBadgeState('e4', 3)" class="rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="e4_3" class="badge-check rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
                             <span>Elite 3 (Agatha)</span>
                         </label>
                         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer hover:text-white p-1.5 rounded hover:bg-neutral-900 transition">
-                            <input type="checkbox" id="e4_4" onchange="updateBadgeState('e4', 4)" class="rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
+                            <input type="checkbox" id="e4_4" class="badge-check rounded bg-neutral-900 border-neutral-700 text-purple-500 focus:ring-0 w-4 h-4">
                             <span>Elite 4 (Lance)</span>
                         </label>
                     </div>
@@ -202,15 +207,15 @@
             </div>
         </section>
 
-        <!-- Full Width: Generated SQL Code Output Panel -->
+        <!-- Full Width SQL Code Output Panel -->
         <section class="md:col-span-2 bg-mc-card border border-mc-border rounded-xl p-5 shadow-lg flex flex-col">
             <div class="flex justify-between items-center mb-3">
                 <h2 class="text-md font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-terminal text-blue-400"></i> Generated SQL Code Log
+                    <i class="fa-solid fa-terminal text-blue-400"></i> Generated SQL Code Console (Database Communication)
                 </h2>
                 <div class="flex gap-2">
                     <button onclick="copySQLLog()" class="text-xs bg-neutral-800 hover:bg-neutral-700 text-gray-300 border border-neutral-700 px-2.5 py-1 rounded flex items-center gap-1">
-                        <i class="fa-solid fa-copy"></i> Copy Log
+                        <i class="fa-solid fa-copy"></i> Copy SQL Log
                     </button>
                     <button onclick="clearSQLLog()" class="text-xs bg-neutral-800 hover:bg-neutral-700 text-gray-300 border border-neutral-700 px-2.5 py-1 rounded flex items-center gap-1">
                         <i class="fa-solid fa-trash"></i> Clear Log
@@ -218,212 +223,371 @@
                 </div>
             </div>
 
-            <div id="sqlLogContainer" class="bg-neutral-950 p-4 rounded-lg border border-neutral-800 font-mono text-xs text-emerald-400 space-y-1.5 max-h-52 overflow-y-auto">
+            <div id="sqlLogContainer" class="bg-neutral-950 p-4 rounded-lg border border-neutral-800 font-mono text-xs text-emerald-400 space-y-1.5 max-h-56 overflow-y-auto">
                 <!-- Dynamically populated SQL log lines -->
             </div>
-            <p class="text-[11px] text-gray-500 mt-2">✨ Live SQL operations generated for user actions (CREATE, INSERT, UPDATE).</p>
+            <p class="text-[11px] text-gray-500 mt-2">✨ Real-time SQL query log showing direct input-to-output database communication.</p>
         </section>
 
     </main>
 
     <!-- Footer -->
     <footer class="bg-mc-card border-t border-mc-border p-4 mt-auto text-center text-xs text-gray-500">
-        <p>Bryson's Pixelmon Server • Relational Database & GUI Project</p>
+        <p>Bryson's Pixelmon Server • Firebase Real-Time Database & GUI Integration Project</p>
     </footer>
 
-    <!-- JavaScript Application Logic -->
-    <script>
-        // Seed database state with standard players
-        const defaultPlayers = [
-            {
-                username: "Bryson",
-                gyms: [true, true, true, true, true, true, true, true],
-                e4: [true, true, true, true]
-            },
-            {
-                username: "AshKetchum",
-                gyms: [true, true, true, true, true, true, true, true],
-                e4: [true, true, true, false]
-            },
-            {
-                username: "Red",
-                gyms: [true, true, true, true, false, false, false, false],
-                e4: [false, false, false, false]
-            }
-        ];
+    <!-- Firebase Script (Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc, 
+            updateDoc, 
+            onSnapshot, 
+            deleteDoc, 
+            getDocs 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let players = [];
-        let sqlLogs = [];
-
-        window.onload = function() {
-            logSQL("-- Initialize Database Schema", "info");
-            logSQL("CREATE TABLE players (\n  player_id INT AUTO_INCREMENT PRIMARY KEY,\n  username VARCHAR(50) UNIQUE NOT NULL,\n  gym_1 BOOLEAN DEFAULT FALSE, gym_2 BOOLEAN DEFAULT FALSE, gym_3 BOOLEAN DEFAULT FALSE, gym_4 BOOLEAN DEFAULT FALSE,\n  gym_5 BOOLEAN DEFAULT FALSE, gym_6 BOOLEAN DEFAULT FALSE, gym_7 BOOLEAN DEFAULT FALSE, gym_8 BOOLEAN DEFAULT FALSE,\n  e4_1 BOOLEAN DEFAULT FALSE, e4_2 BOOLEAN DEFAULT FALSE, e4_3 BOOLEAN DEFAULT FALSE, e4_4 BOOLEAN DEFAULT FALSE\n);", "system");
-            
-            resetToDefaults();
+        // Global environment fallbacks
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bryson-pixelmon-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-api-key",
+            authDomain: "demo-app.firebaseapp.com",
+            projectId: "demo-app",
+            storageBucket: "demo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:123456789"
         };
 
-        // Initialize / Reset State
-        function resetToDefaults() {
-            players = JSON.parse(JSON.stringify(defaultPlayers));
-            
-            logSQL("-- Seeding initial database records", "info");
-            players.forEach(p => {
-                const gymVals = p.gyms.map(v => v ? 'TRUE' : 'FALSE').join(', ');
-                const e4Vals = p.e4.map(v => v ? 'TRUE' : 'FALSE').join(', ');
-                logSQL(`INSERT INTO players (username, gym_1, gym_2, gym_3, gym_4, gym_5, gym_6, gym_7, gym_8, e4_1, e4_2, e4_3, e4_4) VALUES ('${p.username}', ${gymVals}, ${e4Vals});`, 'action');
-            });
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-            updatePlayerSelectDropdown();
-            renderRegisteredPlayersList();
-            loadActivePlayerBadges();
-            showToast("Database seeded with sample players!");
-        }
+        let currentUser = null;
+        let playersMap = new Map(); // Store player data keyed by username lowercase
+        let sqlLogs = [];
 
-        // Render List & Dropdown
-        function updatePlayerSelectDropdown() {
-            const select = document.getElementById('activePlayerSelect');
-            const currentSelected = select.value;
-            select.innerHTML = '';
+        // Collection Path following Rule 1
+        const playersCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'players');
 
-            players.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.username;
-                opt.textContent = p.username;
-                select.appendChild(opt);
-            });
+        // Log initial schema definition
+        logSQL("-- Initialize Relational Database Schema", "info");
+        logSQL("CREATE TABLE players (\n  player_id VARCHAR(50) PRIMARY KEY,\n  username VARCHAR(50) UNIQUE NOT NULL,\n  gym_1 BOOLEAN DEFAULT FALSE, gym_2 BOOLEAN DEFAULT FALSE, gym_3 BOOLEAN DEFAULT FALSE, gym_4 BOOLEAN DEFAULT FALSE,\n  gym_5 BOOLEAN DEFAULT FALSE, gym_6 BOOLEAN DEFAULT FALSE, gym_7 BOOLEAN DEFAULT FALSE, gym_8 BOOLEAN DEFAULT FALSE,\n  e4_1 BOOLEAN DEFAULT FALSE, e4_2 BOOLEAN DEFAULT FALSE, e4_3 BOOLEAN DEFAULT FALSE, e4_4 BOOLEAN DEFAULT FALSE\n);", "system");
 
-            if (currentSelected && players.some(p => p.username === currentSelected)) {
-                select.value = currentSelected;
-            } else if (players.length > 0) {
-                select.value = players[0].username;
+        // Authenticate First (Rule 3)
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const userCredential = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = userCredential.user;
+                } else {
+                    const userCredential = await signInAnonymously(auth);
+                    currentUser = userCredential.user;
+                }
+                updateSyncStatus(true, "Live Firebase DB Connected");
+                setupRealtimeListener();
+            } catch (err) {
+                console.error("Auth initialization failed:", err);
+                updateSyncStatus(false, "Connection Error");
             }
         }
 
-        function renderRegisteredPlayersList() {
-            const list = document.getElementById('registeredPlayersList');
-            const countBadge = document.getElementById('playerCountBadge');
-            list.innerHTML = '';
+        // Realtime Firestore Listener
+        function setupRealtimeListener() {
+            if (!currentUser) return;
 
-            countBadge.textContent = `${players.length} Players`;
+            onSnapshot(playersCollectionRef, (snapshot) => {
+                playersMap.clear();
 
-            players.forEach(p => {
-                const badge = document.createElement('span');
-                badge.className = "bg-neutral-900 border border-neutral-700 text-gray-300 text-xs px-2.5 py-1 rounded font-mono flex items-center gap-1.5";
-                badge.innerHTML = `<i class="fa-solid fa-user text-emerald-400 text-[10px]"></i> ${p.username}`;
-                list.appendChild(badge);
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data && data.username) {
+                        playersMap.set(data.username.toLowerCase(), {
+                            id: docSnap.id,
+                            ...data
+                        });
+                    }
+                });
+
+                // If collection is completely empty, offer seed
+                if (snapshot.empty) {
+                    seedInitialDataIfEmpty();
+                } else {
+                    renderUIFromMap();
+                }
+            }, (error) => {
+                console.error("Firestore snapshot error:", error);
+                showToast("Failed to fetch live database updates", "error");
+                updateSyncStatus(false, "Sync Interrupted");
             });
         }
 
-        // BOX 1: Duplicate Validation & Register Username
-        function handleAddUser(e) {
+        // Render UI Elements when map updates
+        function renderUIFromMap() {
+            const playerList = Array.from(playersMap.values());
+            
+            // 1. Render Registered Players Badges
+            const listEl = document.getElementById('registeredPlayersList');
+            const countBadge = document.getElementById('playerCountBadge');
+            listEl.innerHTML = '';
+            countBadge.textContent = `${playerList.length} Players`;
+
+            if (playerList.length === 0) {
+                listEl.innerHTML = '<span class="text-xs text-gray-500 italic">No players registered yet.</span>';
+            } else {
+                playerList.forEach(p => {
+                    const badge = document.createElement('span');
+                    badge.className = "bg-neutral-900 border border-neutral-700 text-gray-300 text-xs px-2.5 py-1 rounded font-mono flex items-center gap-1.5 cursor-pointer hover:border-emerald-500 transition";
+                    badge.innerHTML = `<i class="fa-solid fa-user text-emerald-400 text-[10px]"></i> ${p.username}`;
+                    badge.onclick = () => {
+                        document.getElementById('activePlayerSelect').value = p.username;
+                        loadActivePlayerBadges();
+                    };
+                    listEl.appendChild(badge);
+                });
+            }
+
+            // 2. Update Select Dropdown
+            const selectEl = document.getElementById('activePlayerSelect');
+            const previousSelected = selectEl.value;
+            selectEl.innerHTML = '';
+
+            if (playerList.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "-- No Players Registered --";
+                selectEl.appendChild(opt);
+            } else {
+                playerList.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.username;
+                    opt.textContent = p.username;
+                    selectEl.appendChild(opt);
+                });
+            }
+
+            // Maintain selected value or pick first
+            if (previousSelected && Array.from(playersMap.values()).some(p => p.username === previousSelected)) {
+                selectEl.value = previousSelected;
+            } else if (playerList.length > 0) {
+                selectEl.value = playerList[0].username;
+            }
+
+            loadActivePlayerBadges();
+        }
+
+        // Add New Player (Box 1)
+        async function handleAddUser(e) {
             e.preventDefault();
+            if (!currentUser) {
+                showToast("Not connected to database!", "error");
+                return;
+            }
+
             const input = document.getElementById('newUsername');
             const errorBox = document.getElementById('usernameError');
             const errorText = document.getElementById('usernameErrorText');
-            
+            const submitBtn = document.getElementById('submitBtn');
+
             const rawUsername = input.value.trim();
             if (!rawUsername) return;
 
-            // Duplicate Check (Case-Insensitive)
-            const exists = players.some(p => p.username.toLowerCase() === rawUsername.toLowerCase());
-
-            if (exists) {
+            // Duplicate Check (Case-Insensitive against live Map)
+            if (playersMap.has(rawUsername.toLowerCase())) {
                 errorText.textContent = `Username '${rawUsername}' is already taken! Please choose another.`;
                 errorBox.classList.remove('hidden');
                 showToast(`Username '${rawUsername}' already exists!`, 'error');
                 return;
             }
 
-            // Hide error if valid
             errorBox.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Saving...`;
 
-            // Add new player record
-            const newPlayer = {
-                username: rawUsername,
-                gyms: [false, false, false, false, false, false, false, false],
-                e4: [false, false, false, false]
-            };
-            players.push(newPlayer);
+            try {
+                // Prepare new player object
+                const docId = rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const newPlayerData = {
+                    username: rawUsername,
+                    gyms: [false, false, false, false, false, false, false, false],
+                    e4: [false, false, false, false],
+                    createdAt: new Date().toISOString()
+                };
 
-            // Live SQL Generation
-            const sql = `INSERT INTO players (username) VALUES ('${rawUsername}');`;
-            logSQL(sql, 'action');
+                const playerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', docId);
+                await setDoc(playerDocRef, newPlayerData);
 
-            // Update UI & Select active new player
-            updatePlayerSelectDropdown();
-            renderRegisteredPlayersList();
-            
-            document.getElementById('activePlayerSelect').value = rawUsername;
-            loadActivePlayerBadges();
+                // SQL Log output
+                const sql = `INSERT INTO players (username, gym_1, gym_2, gym_3, gym_4, gym_5, gym_6, gym_7, gym_8, e4_1, e4_2, e4_3, e4_4)\nVALUES ('${rawUsername}', FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE);`;
+                logSQL(sql, 'action');
 
-            input.value = '';
-            showToast(`Player '${rawUsername}' registered successfully!`);
+                input.value = '';
+                showToast(`Player '${rawUsername}' registered to live DB!`);
+
+                // Select the newly created player in dropdown
+                setTimeout(() => {
+                    const selectEl = document.getElementById('activePlayerSelect');
+                    selectEl.value = rawUsername;
+                    loadActivePlayerBadges();
+                }, 100);
+
+            } catch (err) {
+                console.error("Error writing player doc:", err);
+                showToast("Failed to register player in cloud database.", "error");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fa-solid fa-plus"></i> Register Player SQL Record`;
+            }
         }
 
-        // BOX 2: Load Active Player Badges State into Checkboxes
+        // Load Active Player Badges into Checkboxes (Box 2)
         function loadActivePlayerBadges() {
-            const selectedUsername = document.getElementById('activePlayerSelect').value;
-            const player = players.find(p => p.username === selectedUsername);
+            const selectEl = document.getElementById('activePlayerSelect');
+            const selectedUsername = selectEl.value;
 
-            if (!player) return;
+            if (!selectedUsername || !playersMap.has(selectedUsername.toLowerCase())) {
+                // Clear checkboxes if no player selected
+                for (let i = 1; i <= 8; i++) document.getElementById(`gym_${i}`).checked = false;
+                for (let i = 1; i <= 4; i++) document.getElementById(`e4_${i}`).checked = false;
+                document.getElementById('gymCountLabel').textContent = `(0/8)`;
+                document.getElementById('e4CountLabel').textContent = `(0/4)`;
+                return;
+            }
 
-            // Set Gym Checkboxes
+            const player = playersMap.get(selectedUsername.toLowerCase());
+
+            // 8 Gym Checkboxes
             let gymCount = 0;
             for (let i = 1; i <= 8; i++) {
                 const chk = document.getElementById(`gym_${i}`);
-                chk.checked = player.gyms[i - 1];
+                chk.checked = player.gyms && player.gyms[i - 1] === true;
                 if (chk.checked) gymCount++;
             }
             document.getElementById('gymCountLabel').textContent = `(${gymCount}/8)`;
 
-            // Set Elite 4 Checkboxes
+            // 4 Elite 4 Checkboxes
             let e4Count = 0;
             for (let i = 1; i <= 4; i++) {
                 const chk = document.getElementById(`e4_${i}`);
-                chk.checked = player.e4[i - 1];
+                chk.checked = player.e4 && player.e4[i - 1] === true;
                 if (chk.checked) e4Count++;
             }
             document.getElementById('e4CountLabel').textContent = `(${e4Count}/4)`;
         }
 
-        // Interactive Checkbox Change -> Update State & Emit SQL UPDATE
-        function updateBadgeState(type, index) {
-            const selectedUsername = document.getElementById('activePlayerSelect').value;
-            const player = players.find(p => p.username === selectedUsername);
+        // Handle Badge Toggle -> Firebase Update & SQL Log
+        async function updateBadgeState(type, index) {
+            if (!currentUser) return;
 
-            if (!player) return;
+            const selectEl = document.getElementById('activePlayerSelect');
+            const selectedUsername = selectEl.value;
 
+            if (!selectedUsername || !playersMap.has(selectedUsername.toLowerCase())) return;
+
+            const player = playersMap.get(selectedUsername.toLowerCase());
             const isGym = type === 'gym';
             const checkbox = document.getElementById(`${type}_${index}`);
             const isChecked = checkbox.checked;
 
+            // Clone current state array
+            const updatedGyms = [...(player.gyms || [false,false,false,false,false,false,false,false])];
+            const updatedE4 = [...(player.e4 || [false,false,false,false])];
+
             if (isGym) {
-                player.gyms[index - 1] = isChecked;
-                const colName = `gym_${index}`;
-                const sql = `UPDATE players SET ${colName} = ${isChecked ? 'TRUE' : 'FALSE'} WHERE username = '${selectedUsername}';`;
-                logSQL(sql, 'action');
+                updatedGyms[index - 1] = isChecked;
             } else {
-                player.e4[index - 1] = isChecked;
-                const colName = `e4_${index}`;
-                const sql = `UPDATE players SET ${colName} = ${isChecked ? 'TRUE' : 'FALSE'} WHERE username = '${selectedUsername}';`;
-                logSQL(sql, 'action');
+                updatedE4[index - 1] = isChecked;
             }
 
-            // Update badge counts display
-            const gymCount = player.gyms.filter(Boolean).length;
-            const e4Count = player.e4.filter(Boolean).length;
-            document.getElementById('gymCountLabel').textContent = `(${gymCount}/8)`;
-            document.getElementById('e4CountLabel').textContent = `(${e4Count}/4)`;
+            try {
+                const docId = player.id || selectedUsername.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const playerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', docId);
+                
+                await updateDoc(playerDocRef, {
+                    gyms: updatedGyms,
+                    e4: updatedE4
+                });
 
-            showToast(`Updated ${isGym ? 'Gym ' + index : 'Elite Four ' + index} for ${selectedUsername}`);
+                // Emit SQL Command
+                const colName = isGym ? `gym_${index}` : `e4_${index}`;
+                const sql = `UPDATE players SET ${colName} = ${isChecked ? 'TRUE' : 'FALSE'} WHERE username = '${selectedUsername}';`;
+                logSQL(sql, 'action');
+
+                showToast(`Updated ${isGym ? 'Gym ' + index : 'Elite Four ' + index} for ${selectedUsername}`);
+
+            } catch (err) {
+                console.error("Error updating player progress:", err);
+                // Revert UI checkbox on error
+                checkbox.checked = !isChecked;
+                showToast("Failed to save progress to cloud database.", "error");
+            }
         }
 
-        // SQL Logging Helpers
+        // Seed initial default players if database is completely empty
+        async function seedInitialDataIfEmpty() {
+            logSQL("-- Seeding initial database records to Firebase...", "info");
+            const defaults = [
+                {
+                    username: "Bryson",
+                    gyms: [true, true, true, true, true, true, true, true],
+                    e4: [true, true, true, true]
+                },
+                {
+                    username: "AshKetchum",
+                    gyms: [true, true, true, true, true, true, true, true],
+                    e4: [true, true, true, false]
+                },
+                {
+                    username: "Red",
+                    gyms: [true, true, true, true, false, false, false, false],
+                    e4: [false, false, false, false]
+                }
+            ];
+
+            for (const p of defaults) {
+                const docId = p.username.toLowerCase();
+                const playerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', docId);
+                await setDoc(playerDocRef, {
+                    ...p,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        }
+
+        // Reset & Seed Button
+        window.resetDefaultPlayers = async function() {
+            if (!currentUser) return;
+            if (!confirm("Are you sure you want to reset and seed default players?")) return;
+
+            try {
+                const snapshot = await getDocs(playersCollectionRef);
+                for (const docSnap of snapshot.docs) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', docSnap.id));
+                }
+                await seedInitialDataIfEmpty();
+                showToast("Database reset with default players!");
+            } catch (err) {
+                console.error("Reset failed:", err);
+                showToast("Error resetting database.", "error");
+            }
+        };
+
+        // SQL Logging UI Functions
         function logSQL(text, type = 'action') {
             const timestamp = new Date().toLocaleTimeString();
             sqlLogs.push(`[${timestamp}] ${text}`);
 
             const logContainer = document.getElementById('sqlLogContainer');
+            if (!logContainer) return;
+
             const line = document.createElement('div');
             line.className = type === 'system' ? 'text-gray-500 italic' : (type === 'info' ? 'text-blue-400 font-semibold' : 'text-emerald-400 font-mono');
             line.textContent = `[${timestamp}] ${text}`;
@@ -431,7 +595,7 @@
             logContainer.scrollTop = logContainer.scrollHeight;
         }
 
-        function copySQLLog() {
+        window.copySQLLog = function() {
             const fullLog = sqlLogs.join('\n');
             const textarea = document.createElement('textarea');
             textarea.value = fullLog;
@@ -440,15 +604,27 @@
             document.execCommand('copy');
             document.body.removeChild(textarea);
             showToast("SQL Log copied to clipboard!");
-        }
+        };
 
-        function clearSQLLog() {
+        window.clearSQLLog = function() {
             sqlLogs = [];
-            document.getElementById('sqlLogContainer').innerHTML = '';
+            const logContainer = document.getElementById('sqlLogContainer');
+            if (logContainer) logContainer.innerHTML = '';
             showToast("SQL Log cleared");
+        };
+
+        function updateSyncStatus(isLive, message) {
+            const container = document.getElementById('syncStatus');
+            const text = document.getElementById('syncStatusText');
+            if (isLive) {
+                container.className = "bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 text-xs px-3 py-1.5 rounded-full flex items-center gap-2";
+                text.textContent = `🟢 ${message}`;
+            } else {
+                container.className = "bg-red-950/80 border border-red-800/80 text-red-400 text-xs px-3 py-1.5 rounded-full flex items-center gap-2";
+                text.textContent = `🔴 ${message}`;
+            }
         }
 
-        // Toast Messages
         function showToast(message, type = "success") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -470,6 +646,21 @@
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
+
+        // Attach DOM Listeners
+        document.getElementById('addUserForm').addEventListener('submit', handleAddUser);
+        document.getElementById('activePlayerSelect').addEventListener('change', loadActivePlayerBadges);
+
+        // Bind Checkbox events
+        for (let i = 1; i <= 8; i++) {
+            document.getElementById(`gym_${i}`).addEventListener('change', () => updateBadgeState('gym', i));
+        }
+        for (let i = 1; i <= 4; i++) {
+            document.getElementById(`e4_${i}`).addEventListener('change', () => updateBadgeState('e4', i));
+        }
+
+        // Start Firebase Auth & Realtime connection on load
+        initAuth();
     </script>
 </body>
 </html>
